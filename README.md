@@ -69,8 +69,6 @@ Firmware final. Al encender verifica que los 18 servos respondan (si falta algun
 - **Velocidades:** `MOVING_SPEED_HOME` (lenta, para ir a HOME) y `MOVING_SPEED_WALK` (durante la marcha).
 - **Watchdog:** si no llegan tramas en `LINK_TIMEOUT_MS` (1 s), mantiene la última pose. Con `HOME_ON_TIMEOUT = 1` regresa a HOME.
 
-Tablas de calibración por pata: `LEG_IDS`, `RAW_HOME`, `JOINT_SIGN`.
-
 ### `hexapodo_home/hexapodo_home.ino`
 
 Sketch de puesta a punto. Lleva las seis patas a HOME, pata por pata, e imprime las posiciones alcanzadas. Se usa para calibrar `JOINT_OFFSET_DEG` y `JOINT_SIGN` de cada pata antes de caminar. Sus valores de HOME son los que se trasladaron a `RAW_HOME` en el firmware de caminata.
