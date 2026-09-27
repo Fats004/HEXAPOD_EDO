@@ -41,7 +41,6 @@ Recibe por TCP (puerto 80) las tramas que envía MATLAB y las reenvía línea po
 |---|---|
 | `HEXAPOD_ID` | Identidad del robot (31 a 36). En el laboratorio define la IP fija `192.168.50.(200 + ID)`. |
 | `RED_LABORATORIO` | `1` = red Robotat con IP fija · `0` = otra red por DHCP. |
-| `DEBUG_ECHO` | `1` imprime cada trama en el monitor serie (dejar en `0` al caminar). |
 
 
 **Conexión física:** ESP32 GPIO17 (TX2) → RX de Serial2 de la OpenCM · GPIO16 (RX2) ← TX · GND común.
@@ -118,7 +117,7 @@ Todos modelan cada pata como una cadena de 3 GDL con Robotics Toolbox (`'Rz(q1) 
 
 ---
 
-## Protocolo MATLAB → OpenCM
+## Protocolo MATLAB - OpenCM
 
 Una línea JSON por trama, terminada en `\n`:
 
