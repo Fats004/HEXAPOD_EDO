@@ -25,6 +25,10 @@ MATLAB/                                  Simulación y control
 ├── robotat_hexapod_main_functions/      ★ Librería Robotat del hexápodo
 ├── sim.m, sim_giro.m                    Simulación de avance y de giro
 ├── caminata_esp32.m, giro_esp32.m       Primeras pruebas de marcha en hardware
+|
+MANUALES/                                Manuales para uso y ensamblaje del robot
+├── MANUAL_DE_ENSAMBLAJE_HEXAPOD_EDO     ★ Manual de ensamblaje y cableado
+├── MANUAL_DE_USUARIO_HEXAPOD_EDO        ★ Manual de mantenimiento y uso
 ```
 
 Las carpetas marcadas con ★ contienen el código que corre en la versión final del robot.
