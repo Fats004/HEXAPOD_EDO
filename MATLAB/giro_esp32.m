@@ -3,22 +3,6 @@
 %% ========================================================================
 %  HEXÁPODO - GIRO SOBRE SU PROPIO EJE transmitido por la red Robotat
 %  ------------------------------------------------------------------------
-%  MATLAB --TCP:80--> ESP32 --UART 115200--> OpenCM9.04 --TTL 1Mbps--> 18x AX-12A
-%
-%  Gemelo de caminata_esp32.m. Mismo protocolo, mismo diezmado, misma
-%  conexión. La cinemática del ciclo es IDÉNTICA (el mismo rectángulo del
-%  pie resuelto con la misma ikine); lo único que cambia es hacia dónde
-%  empuja cada pata durante su fase de apoyo:
-%
-%     avance -> sgn = [ +1 +1 +1 -1 -1 -1 ]
-%               las patas de un lado y del otro empujan en sentidos
-%               opuestos en su marco local -> el cuerpo se traslada.
-%
-%     giro   -> sgn = [ +1 +1 +1 +1 +1 +1 ]
-%               las 6 empujan en el MISMO sentido angular -> las fuerzas
-%               se cancelan en traslación y solo queda par -> el cuerpo
-%               gira sobre su propio eje.
-%
 %  PROTOCOLO (una línea por trama, terminada en \n):
 %       {"q":[q1,...,q18]}   ángulos del MODELO en decigrados (enteros)
 %       {"c":"home"}         ir a la pose HOME
@@ -36,14 +20,12 @@ CFG.port       = 80;
 CFG.fs         = 40;               % Hz de envío
 CFG.nCycles    = 8;                % ciclos de giro (Inf = hasta Ctrl+C)
 CFG.useAck     = true;             % esperar "ok" del ESP32 en cada trama
-CFG.simOnly    = false;            % true = solo calcula/grafica, NO conecta
+CFG.simOnly    = false;            % true = solo grafica
 
 % --- SENTIDO DEL GIRO ---
-CFG.dir        = +1;               % +1 = un sentido, -1 = el contrario.
-                                   % Cuál es horario depende del montaje;
-                                   % se determina en la primera prueba.
+CFG.dir        = +1;              
 
-% --- SEGURIDAD: empezá chiquito ---
+% --- SEGURIDAD: empezar chiquito ---
 CFG.scale      = 0.70;              % 0..1 escala la amplitud del barrido.
                                    % Primera prueba: 0.2-0.3 con el robot colgado.
 CFG.activeLegs = [1 2 3 4 5 6];    % patas que se mueven; el resto se queda en HOME.
@@ -98,7 +80,7 @@ qcycle(:,1) = qcycle(:,1) - mean(qcycle(:,1));   % coxa oscila alrededor de HOME
 fprintf('Ciclo resuelto: %d muestras a %.0f Hz (%.2f s por ciclo)\n', ...
         size(qcycle,1), 1/dt_ik, sum(tseg_one));
 
-%% --------- DIEZMADO A LA TASA DE TRANSMISIÓN Y ARMADO DE TRAMAS ---------
+%% --------- TASA DE TRANSMISIÓN Y TRAMAS ---------
 paso = max(1, round((1/CFG.fs)/dt_ik));
 qtx  = qcycle(1:paso:end, :);
 N    = size(qtx,1);
@@ -125,7 +107,7 @@ else
     kleg = ones(1,6);
 end
 
-% Ángulos HOME del modelo en grados (referencia para el firmware)
+% Ángulos HOME del modelo en grados 
 HOME_DEG_MODELO = rad2deg(qHome);
 
 QDECI = zeros(N,18);
@@ -144,7 +126,6 @@ for k = 1:N
     end
 end
 
-% Reporte de rangos
 dev = max(abs(QDECI - repmat(round(HOME_DEG_MODELO*10),1,6)), [], 1)/10;
 fprintf('Desviación máx. respecto a HOME [deg]:\n');
 for i = 1:6
@@ -153,9 +134,6 @@ for i = 1:6
 end
 
 %% ---------------------- ESTIMACIÓN DEL GIRO ESPERADO --------------------
-% Cada fase de apoyo barre el pie un arco de 2*stride sobre un círculo de
-% radio rPie. El cuerpo gira ese arco dividido entre el radio. En marcha
-% trípode hay DOS fases de apoyo por ciclo.
 sweep    = max(abs(qtx(:,1)));                       % barrido de coxa (rad)
 arco     = 2*stride*CFG.scale;                       % arco por apoyo (m)
 girApoyo = arco / mean(rPie);                        % rad por fase de apoyo
@@ -173,8 +151,6 @@ fprintf('  Vuelta completa      : %.1f ciclos = %.1f s\n', ...
         360/rad2deg(girCiclo), 360/rad2deg(girCiclo)*Tciclo);
 
 % --- Holgura entre patas vecinas ---------------------------------------
-% Las patas vecinas más cercanas están a 45 deg. Como los dos trípodes van
-% en antifase, en el peor instante esa separación se cierra 2*barrido.
 holgura = 45 - 2*rad2deg(sweep)*CFG.scale*max(kleg);
 fprintf('  Holgura mín. vecinas : %.1f deg (~%.0f mm entre pies)\n', ...
         holgura, 1000*deg2rad(holgura)*mean(rPie));
