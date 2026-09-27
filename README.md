@@ -25,7 +25,6 @@ MATLAB/                                  Simulación y control
 ├── robotat_hexapod_main_functions/      ★ Librería Robotat del hexápodo
 ├── sim.m, sim_giro.m                    Simulación de avance y de giro
 ├── caminata_esp32.m, giro_esp32.m       Primeras pruebas de marcha en hardware
-└── salazar_og.m, simulacion_salazar.m   Simulación heredada (referencia)
 ```
 
 Las carpetas marcadas con ★ contienen el código que corre en la versión final del robot.
@@ -43,9 +42,7 @@ Recibe por TCP (puerto 80) las tramas que envía MATLAB y las reenvía línea po
 | `HEXAPOD_ID` | Identidad del robot (31 a 36). En el laboratorio define la IP fija `192.168.50.(200 + ID)`. |
 | `RED_LABORATORIO` | `1` = red Robotat con IP fija · `0` = otra red por DHCP. |
 | `DEBUG_ECHO` | `1` imprime cada trama en el monitor serie (dejar en `0` al caminar). |
-| `USE_ROBOTAT` / `ROBOTAT_ID` | Conexión opcional al servidor OptiTrack (desactivada). `ROBOTAT_ID` es el número de **marcador**, no el `HEXAPOD_ID`. |
 
-Al arrancar, imprime en el monitor serie la llamada exacta que debe escribirse en MATLAB (por ejemplo `hexa = robotat_hexapod_connect(31);`).
 
 **Conexión física:** ESP32 GPIO17 (TX2) → RX de Serial2 de la OpenCM · GPIO16 (RX2) ← TX · GND común.
 
@@ -94,21 +91,17 @@ Código heredado del trabajo anterior (Luis Salazar). Recibía valores crudos 0�
 
 ### `robotat_hexapod_main_functions/` ★ Librería Robotat del hexápodo
 
-API de control no bloqueante, con la misma lógica de uso que la librería del Pololu 3Pi del Robotat: se llama a la función de marcha dentro de un lazo y cada llamada envía la siguiente porción del ciclo.
-
 | Archivo | Descripción |
 |---|---|
 | `robotat_hexapod_connect.m` | Conecta con el hexápodo (`connect(31)` en el laboratorio o `connect(31, 'IP')` en otra red). Resuelve **una sola vez** la cinemática inversa del ciclo de marcha, calcula la compensación radial `kleg` para el giro y los límites de velocidad `robot.vmin/vmax` y `robot.wmin/wmax`. |
 | `robotat_hexapod_advance_gait.m` | Marcha trípode hacia adelante o atrás a una velocidad en m/s. |
 | `robotat_hexapod_turn_gait.m` | Giro sobre su propio eje, a izquierda o derecha, a una velocidad en °/s. |
-| `robotat_hexapod_step.m` | Núcleo de las dos anteriores: avanza la fase del ciclo según el tiempo transcurrido (`tic`/`toc`, variables `persistent`) y envía la trama de 18 ángulos. |
-| `robotat_hexapod_stream.m` | Versión bloqueante: reproduce el ciclo completo durante un tiempo fijo. |
-| `robotat_hexapod_dance.m` | Rutinas de baile (`rebote`, `balanceo`, `cabeceo`, `twist`, `ola`, `saludo`, `completa`) sincronizadas a un bpm. |
-| `robotat_hexapod_force_stop.m` | Paro: reinicia la fase y envía el comando `home`. |
+| `robotat_hexapod_step.m` | Avanza la fase del ciclo según el tiempo transcurrido (`tic`/`toc`, variables `persistent`) y envía la trama de 18 ángulos. |
+| `robotat_hexapod_stream.m` | Reproduce el ciclo completo durante un tiempo fijo. |
 | `robotat_hexapod_disconnect.m` | Detiene el robot y cierra la conexión. |
 | `robotat_connect.m`, `robotat_disconnect.m`, `robotat_get_pose.m`, `robotat_trvisualize.m`, `q2eul.m`, `q2rot.m` | Funciones estándar del Robotat para leer la pose del sistema OptiTrack. |
 | `main_hexapod_test.m` | Script de pruebas por secciones: avance, retroceso, avance por distancia, giro por ángulo, cuadrado, velocidad variable, baile y desconexión. |
-| `laboratorio11.m` | Adaptación del Laboratorio 11 de MT3005 (control de robots móviles) al hexápodo: navegación hacia un marcador meta con controlador PID (acercamiento exponencial) o LQR (linealización por realimentación), alternando entre giro y avance. |
+| `laboratorio11.m` | Adaptación del Laboratorio 11 de MT3005 (control de robots móviles) al hexápodo: navegación hacia un marcador meta con controlador LQR (linealización por realimentación), alternando entre giro y avance. |
 
 ### Scripts de simulación (carpeta `MATLAB/`)
 
@@ -118,12 +111,8 @@ Todos modelan cada pata como una cadena de 3 GDL con Robotics Toolbox (`'Rz(q1) 
 |---|---|
 | `sim.m` | Simulación de la marcha trípode de avance: trayectoria del pie con `mstraj`, IK con `ikine` y animación de las seis patas. Incluye la gráfica de la trayectoria del extremo de la pata. |
 | `sim_giro.m` | Simulación del giro sobre su propio eje (vector `sgn` con todas las patas en el mismo sentido). |
-| `avr.m` | Variante de `sim.m` que genera las figuras de la tesis: trayectoria del pie (fase de apoyo y de vuelo) y fases del ciclo de marcha. |
-| `avr2.m` | Equivalente de `avr.m` para el giro, con las dimensiones actualizadas del robot. |
 | `caminata_esp32.m` | Primera prueba de marcha en hardware: calcula el ciclo y lo transmite al ESP32 a una frecuencia fija. Tiene modo `simOnly` para graficar sin conectar. |
 | `giro_esp32.m` | Equivalente de `caminata_esp32.m` para el giro. |
-| `salazar_og.m` | Simulación original del trabajo anterior (Luis Salazar). |
-| `simulacion_salazar.m` | Esa misma simulación escalada a las dimensiones del nuevo robot. |
 
 > `caminata_esp32.m` y `giro_esp32.m` fueron el paso previo a la librería; para operar el robot se recomienda usar `robotat_hexapod_main_functions/`.
 
@@ -168,16 +157,9 @@ El ESP32 saluda con `READY` al conectarse y responde `ok` por cada línea.
 
 **MATLAB**
 - Robotics Toolbox for MATLAB de Peter Corke (RTB 9): `DHFactor`, `SerialLink`, `SE3`, `mstraj`, `transl`.
-- `tcpclient`, `writeline` y `configureTerminator` (MATLAB R2020b o posterior).
 - Control System Toolbox (`lqr`), solo para `laboratorio11.m`.
 
 **Arduino IDE**
 - Paquete de placas ESP32 (Espressif).
 - Paquete de placas OpenCM9.04 (ROBOTIS), que incluye `DynamixelWorkbench`.
 - `ArduinoJson` (firmware de la OpenCM y `codigotesisv1`).
-
----
-
-## Créditos
-
-El esquema de comunicación MATLAB → ESP32 → OpenCM y la simulación base (`salazar_og.m`, `Opencm.ino`) parten del trabajo anterior de Luis Salazar sobre la plataforma hexápoda. Las funciones `robotat_*` de pose y visualización pertenecen al ecosistema Robotat de la UVG.
