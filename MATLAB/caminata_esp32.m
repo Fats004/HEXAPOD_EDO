@@ -1,24 +1,6 @@
 %% ========================================================================
 %  HEXÁPODO - Marcha trípode transmitida por la red Robotat
 %  ------------------------------------------------------------------------
-%  MATLAB --TCP:80--> ESP32 --UART 115200--> OpenCM9.04 --TTL 1Mbps--> 18x AX-12A
-%
-%  Este script fusiona:
-%    * sim.m             
-%  -> cinemática inversa del ciclo de marcha (tuya)
-%    * Cinematica_Hex.m   -> esquema de conexión MATLAB->ESP32 (Luis Salazar)
-%
-%  DIFERENCIAS IMPORTANTES respecto al código de Luis:
-%    1. La conexión TCP se abre UNA sola vez y se mantiene viva. Luis abría y
-%       cerraba el socket por cada punto; eso sirve para una pose, no para
-%       caminar.
-%    2. No se envían valores crudos (0..1023) sino ÁNGULOS DEL MODELO en
-%       decigrados. La calibración (offset/signo de cada servo) vive en la
-%       OpenCM, que es donde ya la tienes en hexapodo_home.ino. Así hay una
-%       sola fuente de verdad y no se desincronizan MATLAB y firmware.
-%    3. El orden del arreglo es lineal: índice k -> servo con ID k.
-%         q(1:3)   = pata 1 [coxa, fémur, tibia]  -> IDs 1,2,3
-%         q(4:6)   = pata 2                       -> IDs 4,5,6   ... etc.
 %
 %  PROTOCOLO (una línea por trama, terminada en \n):
 %       {"q":[q1,...,q18]}   ángulos del MODELO en decigrados (enteros)
@@ -39,7 +21,7 @@ CFG.port       = 80;
 CFG.fs         = 40;               % Hz de envío (20 Hz = una trama cada 50 ms)
 CFG.nCycles    = 8;                % ciclos de marcha (Inf = hasta Ctrl+C)
 CFG.useAck     = true;             % esperar "ok" del ESP32 en cada trama
-CFG.simOnly    = false;            % true = solo calcula/grafica, NO conecta
+CFG.simOnly    = false;            % true = solo grafica
 
 % --- SEGURIDAD: empezá chiquito ---
 CFG.scale      = 1.0;             % 0..1 escala la amplitud del paso.
@@ -59,13 +41,13 @@ s   = 'Rz(q1) Ty(L1) Rx(q2) Ty(L2) Rx(q3) Tz(L3)';
 dh  = DHFactor(s);
 leg = eval(dh.command('leg'));   %#ok<EVLEQ>
 
-W = 0.150354;  L = 0.200354;  R = 0.085402;   % cuerpo (solo para graficar)
+W = 0.150354;  L = 0.200354;  R = 0.085402;   % cuerpo
  
 %% ------------------ CICLO DE MARCHA (idéntico a sim.m) ------------------
 stride = 0.05;              % medio paso (m)
 lift   = 0.05;              % altura de levantamiento (m)
 
-qHome = [0 0.4 -0.3];       % configuración HOME del MODELO (rad)
+qHome = [0 0.4 -0.3];       % configuración HOME del MODELO
 pHome = transl(leg.fkine(qHome));
 yy = pHome(2);
 zd = pHome(3);
@@ -92,25 +74,19 @@ qcycle(:,1) = qcycle(:,1) - mean(qcycle(:,1));   % coxa oscila alrededor de HOME
 fprintf('Ciclo resuelto: %d muestras a %.0f Hz (%.2f s por ciclo)\n', ...
         size(qcycle,1), 1/dt_ik, sum(tseg_one));
 
-%% --------- DIEZMADO A LA TASA DE TRANSMISIÓN Y ARMADO DE TRAMAS ---------
-% El IK se resuelve fino (100 Hz) pero se transmite a CFG.fs.
+%% --------- TASA DE TRANSMISIÓN Y TRAMAS -------------------------------
 paso = max(1, round((1/CFG.fs)/dt_ik));
 qtx  = qcycle(1:paso:end, :);
 N    = size(qtx,1);
 
-% Espejo CINEMÁTICO de la coxa: las patas 4-5-6 están montadas al otro lado,
-% su eje +x local apunta al revés, así que hay que invertir el barrido para
-% que las 6 patas empujen hacia el mismo lado.
-% OJO: esto NO es lo mismo que JOINT_SIGN del firmware (que corrige el sentido
-% MECÁNICO del servo). Si una pata camina al revés, invertí UNO de los dos,
-% nunca los dos.
+% Espejo: las patas 4-5-6 están montadas al otro lado,
 sgn = [ +1 +1 +1 -1 -1 -1 ];
 
 % Marcha trípode: {1,3,5} en fase, {2,4,6} desfasadas medio ciclo.
 off   = round(N/2);
 phase = [ 0  off  0  off  0  off ];
 
-% Ángulos HOME del modelo en grados (referencia para el firmware)
+% Ángulos HOME del modelo en grados.
 HOME_DEG_MODELO = rad2deg(qHome);
 
 QDECI = zeros(N,18);
@@ -129,7 +105,6 @@ for k = 1:N
     end
 end
 
-% Reporte de rangos (sirve para detectar movimientos absurdos ANTES de enviar)
 dev = max(abs(QDECI - repmat(round(HOME_DEG_MODELO*10),1,6)), [], 1)/10;
 fprintf('Desviación máx. respecto a HOME [deg]:\n');
 for i = 1:6
