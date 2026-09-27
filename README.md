@@ -14,7 +14,7 @@ El robot se controla desde MATLAB. MATLAB resuelve la cinemática inversa del ci
 ```
 ESP32/                                   Firmware del puente WiFi → UART
 ├── hexapodo_puente_esp32/               ★ Versión final
-└── codigotesisv1/                       Primera versión (histórico)
+└── codigotesisv1/                       Codigo heredado (referencia)
 │
 Opencm/                                  Firmware de la OpenCM9.04
 ├── hexapodo_caminata_opencm/            ★ Versión final (recibe la marcha)
@@ -43,11 +43,11 @@ Recibe por TCP (puerto 80) las tramas que envía MATLAB y las reenvía línea po
 | `RED_LABORATORIO` | `1` = red Robotat con IP fija · `0` = otra red por DHCP. |
 
 
-**Conexión física:** ESP32 GPIO17 (TX2) → RX de Serial2 de la OpenCM · GPIO16 (RX2) ← TX · GND común.
+**Conexión física:** ESP32 GPIO17 (TX2) -> RX de Serial2 de la OpenCM | GPIO16 (RX2) ← TX | GND común.
 
 ### `codigotesisv1/codigotesisv1.ino`
 
-Primera versión del puente. Recibía un JSON con seis cadenas (`q1s`…`q6s`), cerraba la conexión después de cada mensaje y separaba los valores en el ESP32. Se conserva como referencia histórica y fue reemplazado por `hexapodo_puente_esp32`.
+Versi[on heredada (Salazar, 2023). Recibía un JSON con seis cadenas (`q1s`…`q6s`), cerraba la conexión después de cada mensaje y separaba los valores en el ESP32. Se conserva como referencia y fue reemplazado por `hexapodo_puente_esp32`.
 
 ---
 
@@ -55,11 +55,10 @@ Primera versión del puente. Recibía un JSON con seis cadenas (`q1s`…`q6s`), 
 
 ### `hexapodo_caminata_opencm/hexapodo_caminata_opencm.ino` ★
 
-Firmware final. Al encender verifica que los 18 servos respondan (si falta alguno, aborta), lleva las seis patas a HOME y queda a la espera de tramas desde el ESP32.
+Firmware final. Al encender verifica que los 18 servos respondan (si falta alguno, para), lleva las seis patas a HOME y queda a la espera de tramas desde el ESP32.
 
-- **Traducción de ángulos:** MATLAB envía ángulos del *modelo* en decigrados; la placa los convierte a unidades crudas del AX-12A con su propia tabla de calibración:
+- **Traducción de ángulos:** MATLAB envía ángulos del *modelo* en decigrados, luego la placa los convierte a unidades del AX-12A con su propia tabla de calibración:
   `raw = RAW_HOME + SIGN · (ángulo − MODEL_HOME_DEG) · 1023/300`.
-  De esta forma, la calibración vive en un solo lugar.
 - **Escritura simultánea:** usa `syncWrite`, de modo que los 18 servos reciben su posición en un solo paquete.
 - **Límites de seguridad:** `RAW_DEV_MAX` recorta cualquier desviación excesiva respecto a HOME.
 - **Velocidades:** `MOVING_SPEED_HOME` (lenta, para ir a HOME) y `MOVING_SPEED_WALK` (durante la marcha).
@@ -71,7 +70,7 @@ Sketch de puesta a punto. Lleva las seis patas a HOME, pata por pata, e imprime 
 
 ### `Opencm.ino`
 
-Código heredado del trabajo anterior (Luis Salazar). Recibía valores crudos 0–1023 y escribía servo por servo con `ping` + `goalPosition` + `delay`. Se conserva como referencia.
+Código heredado del trabajo anterior (Luis Salazar, 2023). Recibía valores crudos 0–1023 y escribía servo por servo con `ping` + `goalPosition` + `delay`. Se conserva como referencia.
 
 **Mapeo de servos** (fila = pata, columnas = coxa, fémur, tibia):
 
@@ -99,8 +98,8 @@ Código heredado del trabajo anterior (Luis Salazar). Recibía valores crudos 0�
 | `robotat_hexapod_stream.m` | Reproduce el ciclo completo durante un tiempo fijo. |
 | `robotat_hexapod_disconnect.m` | Detiene el robot y cierra la conexión. |
 | `robotat_connect.m`, `robotat_disconnect.m`, `robotat_get_pose.m`, `robotat_trvisualize.m`, `q2eul.m`, `q2rot.m` | Funciones estándar del Robotat para leer la pose del sistema OptiTrack. |
-| `main_hexapod_test.m` | Script de pruebas por secciones: avance, retroceso, avance por distancia, giro por ángulo, cuadrado, velocidad variable, baile y desconexión. |
-| `laboratorio11.m` | Adaptación del Laboratorio 11 de MT3005 (control de robots móviles) al hexápodo: navegación hacia un marcador meta con controlador LQR (linealización por realimentación), alternando entre giro y avance. |
+| `main_hexapod_test.m` | Script de pruebas por secciones: avance, retroceso, avance por distancia, giro por ángulo, cuadrado, y desconexión. |
+| `laboratorio11.m` | Adaptación del Laboratorio 11 de MT3005 - Robótica 1 (control de robots móviles) al hexápodo: navegación hacia una meta con controlador LQR, alternando entre giro y avance. |
 
 ### Scripts de simulación (carpeta `MATLAB/`)
 
@@ -161,4 +160,4 @@ El ESP32 saluda con `READY` al conectarse y responde `ok` por cada línea.
 **Arduino IDE**
 - Paquete de placas ESP32 (Espressif).
 - Paquete de placas OpenCM9.04 (ROBOTIS), que incluye `DynamixelWorkbench`.
-- `ArduinoJson` (firmware de la OpenCM y `codigotesisv1`).
+- `ArduinoJson` (firmware de la OpenCM).
