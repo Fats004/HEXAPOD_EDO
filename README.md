@@ -3,8 +3,8 @@
 El robot se controla desde MATLAB. MATLAB resuelve la cinemática inversa del ciclo de marcha y transmite los ángulos de las 18 articulaciones por WiFi; el ESP32 actúa como puente y la OpenCM9.04 los traduce a posiciones de los servomotores:
 
 ```
-MATLAB ──TCP:80──> ESP32 ──UART 115200──> OpenCM9.04 ──TTL 1 Mbps──> 18× Dynamixel AX-12A
- (IK + marcha)     (puente WiFi)           (calibración + syncWrite)
+     MATLAB    ──>     ESP32     ──>         OpenCM9.04       ──> 18× Dynamixel AX-12A
+ (IK + marcha)     (puente WiFi)     (calibración + syncWrite)
 ```
 
 ---
