@@ -1,0 +1,95 @@
+\chapter{Trayectoria de Seguimiento y Control}
+
+Por último, se buscó validar que la integración del robot dentro del ecosistema Robotat se realizó de manera correcta. Para ello se verificó que las rutinas de coordinación y movimiento desarrolladas en los capítulos anteriores, es decir, la marcha de avance y la marcha de giro, pueden integrarse dentro de un lazo de control cerrado junto con la pose del robot extraída del sistema de captura de movimiento OptiTrack. En este caso, el lazo se implementó mediante control moderno LQR, con el fin de que la plataforma siga de manera exitosa un marcador u objetivo hasta alcanzarlo, sin importar si este cambia de posición durante la prueba. La rutina completa se encuentra en el script \texttt{laboratorio11.m}, dentro de la carpeta de funciones del HexaPod, y es una adaptación del laboratorio de control de robots móviles del curso MT3005 al HexaPod EDO.
+
+\section{Calibración del marcador}
+
+Antes de cerrar el lazo es necesario conocer la orientación real del robot. El cuerpo rígido que OptiTrack asocia al HexaPod no queda necesariamente alineado con su dirección de avance, por lo que se realizó una calibración del desfase del marcador. Para esto se registró la pose del robot, se le hizo caminar en línea recta durante $10\,\text{s}$ con la marcha de avance y se registró nuevamente su pose. La dirección real de avance se obtiene a partir del desplazamiento entre ambas posiciones, mientras que el desfase corresponde a la diferencia entre este rumbo y el ángulo de guiñada promedio medido por el sistema:
+
+\begin{equation}
+\psi_{\text{rumbo}} = \operatorname{atan2}\left(y_2 - y_1,\; x_2 - x_1\right), \qquad
+\delta = \psi_{\text{marcador}} - \psi_{\text{rumbo}}.
+\end{equation}
+
+A partir de ello, la orientación utilizada por el controlador se calcula como $\theta = \psi_{\text{marcador}} - \delta$, normalizada al intervalo $(-180^\circ, 180^\circ]$. Si el recorrido de calibración resulta menor a aproximadamente $200\,\text{mm}$, el rumbo estimado no es confiable y la calibración debe repetirse.
+
+\section{Ley de control LQR}
+
+El HexaPod se aproxima como un robot tipo uniciclo, cuyas entradas son la velocidad lineal $v$ y la velocidad angular $\omega$. Dado que este modelo es no lineal y subactuado, se aplicó una linealización por realimentación, controlando un punto $\mathbf{p}$ situado a una distancia $\ell$ por delante del centro del robot:
+
+\begin{equation}
+\mathbf{p} =
+\begin{bmatrix} x + \ell\cos\theta \\ y + \ell\sin\theta \end{bmatrix}.
+\end{equation}
+
+Con este cambio de variable, la dinámica del punto se reduce a un doble integrador desacoplado $\dot{\mathbf{p}} = \mathbf{u}$, es decir, un sistema lineal con $A = \mathbf{0}_{2\times2}$ y $B = I_2$, sobre el cual se diseñó el controlador LQR. Tomando como estado el error entre el punto controlado y la posición del marcador objetivo, $\mathbf{e} = \mathbf{p} - \mathbf{p}_d$, la ley de control es:
+
+\begin{equation}
+\mathbf{u} = -K\,\mathbf{e},
+\end{equation}
+
+donde $K$ es la matriz de ganancias que minimiza el índice de costo cuadrático definido por las matrices $Q$ y $R$. Finalmente, la acción de control se transforma de vuelta a las entradas del uniciclo mediante:
+
+\begin{equation}
+\begin{bmatrix} v \\ \omega \end{bmatrix} =
+\begin{bmatrix} \cos\theta & \sin\theta \\ -\dfrac{\sin\theta}{\ell} & \dfrac{\cos\theta}{\ell} \end{bmatrix}
+\begin{bmatrix} u_x \\ u_y \end{bmatrix}.
+\end{equation}
+
+Para esto se tomaron en cuenta los parámetros del lazo de control LQR que se muestran en el Cuadro \ref{tab:parametros_lqr}. Al ser $A$ nula y las matrices $Q$ y $R$ diagonales, la ganancia resultante es también diagonal, con $K = \sqrt{1/10}\,I_2 \approx 0.316\,I_2$. El valor elevado de $R$ respecto a $Q$ penaliza el esfuerzo de control, lo que produce consignas moderadas acordes con las velocidades reducidas que puede alcanzar la marcha del HexaPod.
+
+\begin{table}[H]
+\centering\captionsetup{width=0.8\linewidth}
+\caption{Parámetros del lazo de control LQR y de la rutina de seguimiento.}
+\begin{tabular}{llc}
+\hline
+\textbf{Parámetro} & \textbf{Descripción} & \textbf{Valor} \\
+\hline
+$A$ & Matriz de estados & $\mathbf{0}_{2\times2}$ \\
+$B$ & Matriz de entradas & $I_2$ \\
+$Q$ & Ponderación del error & $I_2$ \\
+$R$ & Ponderación del esfuerzo de control & $10\,I_2$ \\
+$K$ & Ganancia LQR resultante & $0.316\,I_2$ \\
+$\ell$ & Distancia del punto de control & $0.10\,\text{m}$ \\
+$\alpha_{\text{alineado}}$ & Umbral para pasar a avanzar & $15^\circ$ \\
+$\alpha_{\text{desalineado}}$ & Umbral para volver a girar & $35^\circ$ \\
+$\rho_{\text{tol}}$ & Tolerancia de llegada & $150\,\text{mm}$ \\
+$T_{\text{pose}}$ & Periodo de lectura de pose (control) & $0.20\,\text{s}$ ($\approx 5\,\text{Hz}$) \\
+$\Delta t_{\text{lazo}}$ & Periodo de envío de tramas (actuación) & $0.03\,\text{s}$ ($\approx 30\,\text{Hz}$) \\
+\hline
+\end{tabular}
+\note{Elaboración propia.}
+\label{tab:parametros_lqr}
+\end{table}
+
+\section{Arbitraje entre marcha de giro y de avance}
+
+A diferencia de un robot diferencial, el HexaPod no puede avanzar y girar dentro de la misma trama, ya que la marcha de avance y la marcha de giro son rutinas independientes. Por esta razón, el par $(v,\omega)$ entregado por el controlador no se aplica de forma simultánea, sino que se alterna entre dos estados según el error de alineación con la meta:
+
+\begin{equation}
+\alpha = \operatorname{atan2}\left(y_d - y,\; x_d - x\right) - \theta.
+\end{equation}
+
+Mientras el robot está girando, cambia a avanzar cuando $|\alpha| < 15^\circ$; mientras avanza, regresa a girar únicamente cuando $|\alpha| > 35^\circ$. Esta histéresis evita que el robot conmute continuamente entre ambas marchas cuando el error de alineación ronda un único umbral. En cada estado, la consigna correspondiente se satura dentro de los límites de velocidad $[v_{\min}, v_{\max}]$ y $[\omega_{\min}, \omega_{\max}]$ definidos por las funciones de marcha, y su signo determina el sentido de giro o de avance. La prueba finaliza cuando la distancia entre el centro del robot y el marcador, $\rho$, es menor a la tolerancia de llegada.
+
+\section{Ritmo del lazo}
+
+Durante las pruebas se observó que la marcha se volvía entrecortada cuando el lazo no enviaba tramas con suficiente frecuencia. Esto se debe a que la fase del ciclo de marcha avanza en proporción al tiempo transcurrido entre llamadas, por lo que un lazo lento no hace que el robot camine más despacio, sino a saltos. Las principales causas no eran el cálculo del control, sino la lectura de la pose desde el servidor del Robotat y la espera de la confirmación del ESP32 por WiFi en cada trama.
+
+Por ello se desacoplaron ambos ritmos: la pose se lee y la ley de control se evalúa a aproximadamente $5\,\text{Hz}$, lo cual es suficiente dado que el robot se desplaza a velocidades bajas, mientras que las tramas de marcha se envían a aproximadamente $30\,\text{Hz}$ reutilizando la última consigna calculada y sin esperar la confirmación del ESP32. De esta forma se mantiene una marcha fluida entre lecturas de pose.
+
+\section{Resultados}
+
+Con estos parámetros se logró validar el funcionamiento del control, verificando que el robot se integra adecuadamente dentro del Robotat, lo que resultó en la trayectoria de seguimiento que se puede observar en la Figura \ref{fig:trayectoria_seguimiento}. En ella se muestra en azul el camino recorrido mientras el robot avanzaba, en naranja los tramos en los que ejecutó la marcha de giro, las flechas grises indican su orientación y la línea morada punteada corresponde al desplazamiento del marcador objetivo durante la prueba.
+
+\begin{figure}[H]
+\centering\captionsetup{width=0.8\linewidth}
+\caption{Trayectoria de seguimiento del marcador con control LQR.}
+\includesvg[width=0.8\textwidth]{figuras/trayectoria_seguimiento.svg}
+\note{Trayectoria del HexaPod en el plano del Robotat siguiendo al marcador 75 mediante control LQR. Elaboración propia.}
+\label{fig:trayectoria_seguimiento}
+\end{figure}
+
+El robot inició cerca de la posición $(1250, -1500)\,\text{mm}$ con una fase de giro para orientarse hacia la meta y, una vez alineado, avanzó en dirección al marcador. Durante el recorrido, el marcador fue desplazado a distintas posiciones, y el robot corrigió su rumbo en consecuencia hasta ingresar al círculo de tolerancia alrededor de su posición final. La prueba tuvo una duración de $59.6\,\text{s}$, con un recorrido total de $4348\,\text{mm}$, de los cuales el robot permaneció girando el $24\,\%$ del tiempo.
+
+Se observa que el camino no es perfectamente recto, sino que presenta pequeñas oscilaciones laterales. Estas pueden atribuirse a que la marcha de trípode desplaza ligeramente el cuerpo en cada ciclo, al deslizamiento de las patas sobre la superficie y a que el arbitraje únicamente corrige la orientación cuando la desalineación supera el umbral de $35^\circ$. Aun así, el robot mantuvo la dirección hacia el objetivo y lo alcanzó dentro de la tolerancia establecida, lo que confirma que las rutinas de movimiento, la comunicación con el ESP32 y la lectura de pose desde OptiTrack funcionan de manera integrada dentro del ecosistema Robotat.
