@@ -66,18 +66,14 @@ TOL_LLEGADA = 150;   % mm
 % RITMO DEL LAZO
 % =================================================================
 
-% La pose se lee a ritmo de control (unas pocas
-% veces por segundo, que es de sobra porque el robot gira a unos grados por
-% segundo) y las tramas de marcha se mandan en cada vuelta.
-
-T_POSE   = 0.20;   % s entre lecturas de pose     -> control a ~5 Hz
-DT_LAZO  = 0.03;   % s entre tramas de marcha     -> actuación a ~30 Hz
+T_POSE   = 0.20;   % s entre lecturas de pose - control a ~5 Hz
+DT_LAZO  = 0.03;   % s entre tramas de marcha - actuación a ~30 Hz
 USAR_ACK = false;  % false = no esperar el "ok" del ESP32 en cada trama
 
 robot.gait.useAck = USAR_ACK;
 
 
-girando = true;      % se arranca orientándose hacia la meta
+girando = true;      %empieza orientándose hacia la meta
 
 
 w_cmd     = robot.wmin;
@@ -99,7 +95,7 @@ while true
             reloj_pose = tic;
             primera    = false;
 
-            % 1. Obtener pose actual del robot y de la meta SIMULTÁNEAMENTE
+            % Obtener pose actual del robot y de la meta SIMULTÁNEAMENTE
             poses = robotat_get_pose(robotat, [robot_no, meta_no], 'eulzyx');
 
             % Extraer pose del robot
@@ -120,7 +116,7 @@ while true
                 llegado = true;
             end
 
-            % 4. LEY DE CONTROL LQR
+            % LEY DE CONTROL LQR
 
             %    Se controla un punto situado l_dist por delante del centro.
             %    Todo en metros, que es la unidad en la que se sintonizó K.
@@ -143,7 +139,7 @@ while true
             alpha_deg = atan2d(yd - ypos, xd - xpos) - theta_deg;
             alpha_deg = atan2d(sind(alpha_deg), cosd(alpha_deg));
 
-            % 5. ARBITRAJE: girar o avanzar, con histéresis
+            % ARBITRAJE: girar o avanzar
             %    (esto sustituye a la cinemática inversa del diferencial)
             if girando
                 if abs(alpha_deg) < ALINEADO_DEG
@@ -155,7 +151,7 @@ while true
                 end
             end
 
-            % 6. Consignas que se van a repetir hasta la próxima lectura
+            
             w_cmd = min(max(abs(w), robot.wmin), robot.wmax);
             v_cmd = min(max(abs(v), robot.vmin), robot.vmax);
 
