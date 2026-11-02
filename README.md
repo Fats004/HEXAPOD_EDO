@@ -100,6 +100,7 @@ Código heredado del trabajo anterior (Luis Salazar, 2023). Recibía valores cru
 | `robotat_hexapod_turn_gait.m` | Giro sobre su propio eje, a izquierda o derecha, a una velocidad en °/s. |
 | `robotat_hexapod_step.m` | Avanza la fase del ciclo según el tiempo transcurrido (`tic`/`toc`, variables `persistent`) y envía la trama de 18 ángulos. |
 | `robotat_hexapod_stream.m` | Reproduce el ciclo completo durante un tiempo fijo. |
+| `robotat_hexapod_force_stop.m` | Fuerza al robot a regresar a su posición HOME. |
 | `robotat_hexapod_disconnect.m` | Detiene el robot y cierra la conexión. |
 | `robotat_connect.m`, `robotat_disconnect.m`, `robotat_get_pose.m`, `robotat_trvisualize.m`, `q2eul.m`, `q2rot.m` | Funciones estándar del Robotat para leer la pose del sistema OptiTrack. |
 | `main_hexapod_test.m` | Script de pruebas por secciones: avance, retroceso, avance por distancia, giro por ángulo, cuadrado, y desconexión. |
